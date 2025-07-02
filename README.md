@@ -1,4 +1,5 @@
-# calculator
+# scientific-calculator-web
+
 A responsive scientific calculator with graph plotting, dark mode, and keyboard input
 🧮 Scientific & Graphing Calculator Web App
 An interactive, modern calculator built with HTML, CSS, and JavaScript, featuring:
