@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculatrice Scientifique & Graphique</title>
+  <style>
+    :root {
+      --bg-light: #f0f0f3;
+      --bg-dark: #121212;
+      --text-light: #222;
+      --text-dark: #eee;
+      --primary: #667eea;
+      --secondary: #f39c12;
+      --error: #e74c3c;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: var(--bg-light);
+      color: var(--text-light);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    body.dark {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    .container {
+      max-width: 420px;
+      width: 100%;
+      background: #fff;
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      transition: background 0.3s, color 0.3s;
+    }
+
+    body.dark .container {
+      background: #222;
+    }
+
+    #display {
+      width: 100%;
+      height: 60px;
+      font-size: 2rem;
+      padding: 10px;
+      border: none;
+      border-radius: 12px;
+      text-align: right;
+      margin-bottom: 10px;
+      background: #f5f7fa;
+    }
+
+    body.dark #display {
+      background: #333;
+      color: #eee;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      padding: 15px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 10px;
+      background: var(--primary);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button.operator { background: var(--secondary); }
+    button.clear { background: var(--error); grid-column: span 2; }
+    button.graph { grid-column: span 2; background: #28a745; }
+
+    button:hover {
+      opacity: 0.85;
+      transform: scale(1.05);
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    select {
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+
+    .mode-toggle {
+      background: transparent;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      padding: 5px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    body.dark .mode-toggle {
+      color: white;
+      border-color: white;
+    }
+
+    #graphContainer {
+      margin-top: 20px;
+      display: none;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <select id="preset" onchange="usePreset()">
+        <option value="">Fonctions prédéfinies</option>
+        <option value="Math.sin(x)">sin(x)</option>
+        <option value="Math.cos(x)">cos(x)</option>
+        <option value="Math.tan(x)">tan(x)</option>
+        <option value="x**2 - 2*x + 1">x² - 2x + 1</option>
+        <option value="Math.exp(-x**2)">exp(-x²)</option>
+      </select>
+      <button class="mode-toggle" onclick="toggleMode()">🌓 Mode</button>
+    </div>
+
+    <input type="text" id="display" disabled />
+
+    <div class="buttons">
+      <button onclick="append('sin(')" class="operator">sin</button>
+      <button onclick="append('cos(')" class="operator">cos</button>
+      <button onclick="append('tan(')" class="operator">tan</button>
+      <button onclick="append('Math.log(')" class="operator">log</button>
+      <button onclick="append('Math.sqrt(')" class="operator">√</button>
+
+      <button onclick="append('7')">7</button>
+      <button onclick="append('8')">8</button>
+      <button onclick="append('9')">9</button>
+      <button onclick="append('/')" class="operator">÷</button>
+      <button onclick="append('**')" class="operator">^</button>
+
+      <button onclick="append('4')">4</button>
+      <button onclick="append('5')">5</button>
+      <button onclick="append('6')">6</button>
+      <button onclick="append('*')" class="operator">×</button>
+      <button onclick="append('(')" class="operator">(</button>
+
+      <button onclick="append('1')">1</button>
+      <button onclick="append('2')">2</button>
+      <button onclick="append('3')">3</button>
+      <button onclick="append('-')" class="operator">−</button>
+      <button onclick="append(')')" class="operator">)</button>
+
+      <button onclick="append('0')">0</button>
+      <button onclick="append('.')">.</button>
+      <button onclick="calculate()" class="operator">=</button>
+      <button onclick="clearDisplay()" class="clear">C</button>
+      <button onclick="plotGraph()" class="graph">📈 Graphe</button>
+    </div>
+
+    <div id="graphContainer">
+      <canvas id="graph"></canvas>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const display = document.getElementById('display');
+    let chart = null;
+
+    function append(val) {
+      display.value += val;
+    }
+
+    function clearDisplay() {
+      display.value = '';
+      if (chart) {
+        chart.destroy();
+        chart = null;
+      }
+      document.getElementById('graphContainer').style.display = 'none';
+    }
+
+    function calculate() {
+      try {
+        const result = Function('"use strict";return (' + display.value + ')')();
+        display.value = result;
+      } catch {
+        display.value = 'Erreur';
+      }
+    }
+
+    function usePreset() {
+      const preset = document.getElementById('preset').value;
+      if (preset) display.value = preset;
+    }
+
+    function toggleMode() {
+      document.body.classList.toggle('dark');
+    }
+
+    function plotGraph() {
+      const expr = display.value;
+      if (!expr.includes('x')) {
+        alert("Utilise 'x' comme variable pour tracer un graphe.");
+        return;
+      }
+
+      const f = new Function('x', `return ${expr}`);
+      let xs = [], ys = [];
+
+      for (let x = -10; x <= 10; x += 0.1) {
+        xs.push(x.toFixed(2));
+        try {
+          let y = f(x);
+          ys.push(isFinite(y) ? y : null);
+        } catch {
+          ys.push(null);
+        }
+      }
+
+      if (chart) chart.destroy();
+
+      document.getElementById('graphContainer').style.display = 'block';
+      const ctx = document.getElementById('graph').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: xs,
+          datasets: [{
+            label: 'f(x)',
+            data: ys,
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102,126,234,0.3)',
+            fill: true,
+            pointRadius: 0,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: 'x' } },
+            y: { title: { display: true, text: 'f(x)' } }
+          },
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+
+    // Clavier physique
+    window.addEventListener('keydown', e => {
+      if (e.key.match(/[0-9+\-*/().]/)) append(e.key);
+      else if (e.key === 'Enter') calculate();
+      else if (e.key === 'Backspace') display.value = display.value.slice(0, -1);
+    });
+  </script>
+</body>
+</html>
